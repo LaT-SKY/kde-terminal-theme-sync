@@ -1,0 +1,10 @@
+[Unit]
+Description=Sync Kitty/Starship colors from KDE theme
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+# ⚠️ 路径按你的安装位置改。%h 是 systemd 的家目录占位符，
+#    所以这一份不用改就能用（前提是你把脚本放在这个目录）。
+#    用 /usr/bin/bash 显式调用，省得依赖脚本的可执行位。
+ExecStart=/usr/bin/bash "%h/.local/share/kde-terminal-theme-sync/auto-sync.sh"

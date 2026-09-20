@@ -1,0 +1,10 @@
+[Unit]
+Description=Watch kdeglobals for KDE theme changes
+
+[Path]
+# 监听这个文件被改写。KDE 换壁纸取色 / 切配色方案 / 昼夜自动切换
+# 都会改写它，所以三种情况都能触发同步。
+PathModified=%h/.config/kdeglobals
+
+[Install]
+WantedBy=default.target
