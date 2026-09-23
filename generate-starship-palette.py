@@ -301,6 +301,17 @@ def render_palette_section(palette, palette_name="kde"):
     return lines
 
 
+def report_file_error(action, path, error):
+    """将文件操作错误转换为面向用户的可操作提示。"""
+    if isinstance(error, PermissionError):
+        print(f"[✗] {action}失败：没有权限访问 {path}。", file=sys.stderr)
+        print("[*] 请确认目标文件及其父目录归当前用户所有且可写后重试。",
+              file=sys.stderr)
+    else:
+        print(f"[✗] {action}失败：{path}: {error}", file=sys.stderr)
+    return 1
+
+
 def generate_starship_config(palette, is_dark):
     """生成完整的 starship.toml，保留用户当前的模块配置但使用调色板颜色。"""
 
@@ -455,8 +466,11 @@ def update_palette_only(palette):
     palette_name = "kde"
     new_block = render_palette_section(palette, palette_name) + [""]
 
-    with open(path) as f:
-        original = f.read()
+    try:
+        with open(path) as f:
+            original = f.read()
+    except OSError as error:
+        return report_file_error("读取 Starship 配置", path, error)
     lines = original.splitlines()
 
     # 顶层 palette 键检查
@@ -517,10 +531,16 @@ def update_palette_only(palette):
 
     backup_path = path.with_suffix(path.suffix + ".bak")
     if not backup_path.exists():
-        shutil.copy2(path, backup_path)
+        try:
+            shutil.copy2(path, backup_path)
+        except OSError as error:
+            return report_file_error("备份 Starship 配置", backup_path, error)
         print(f"[*] 首次备份到: {backup_path}", file=sys.stderr)
-    with open(path, "w") as f:
-        f.write(new_text)
+    try:
+        with open(path, "w") as f:
+            f.write(new_text)
+    except OSError as error:
+        return report_file_error("写入 Starship 配置", path, error)
     print(f"[✓] palette 段已更新: {path}", file=sys.stderr)
     return 0
 
@@ -571,14 +591,17 @@ def main():
     config = generate_starship_config(palette, is_dark)
 
     if output_path:
-        if backup_flag and os.path.exists(output_path):
-            backup_path = output_path + ".bak"
-            shutil.copy2(output_path, backup_path)
-            print(f"[*] 已备份到: {backup_path}", file=sys.stderr)
+        try:
+            if backup_flag and os.path.exists(output_path):
+                backup_path = output_path + ".bak"
+                shutil.copy2(output_path, backup_path)
+                print(f"[*] 已备份到: {backup_path}", file=sys.stderr)
 
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w") as f:
-            f.write(config)
+            os.makedirs(os.path.dirname(output_path), exist_ok=True)
+            with open(output_path, "w") as f:
+                f.write(config)
+        except OSError as error:
+            sys.exit(report_file_error("写入或备份 Starship 配置", output_path, error))
         print(f"[✓] 已写入: {output_path}", file=sys.stderr)
         print(f"[*] 重新打开终端或执行 'exec fish' 查看效果", file=sys.stderr)
     else:
